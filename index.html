@@ -87,7 +87,7 @@
     <div class="container">
         <h1>DragonflyDL</h1>
         <p>Get any software for free, legally!</p>
-        <input type="text" id="softwareURL" placeholder="Enter software URL">
+        <input type="text" id="softwareURL" placeholder="Enter software URL (e.g. adobe.com)">
         <input type="text" id="policyURL" placeholder="Enter policy URL">
         <button onclick="getCoupon()">Find Coupon</button>
         <div class="result" id="couponResult"></div>
@@ -96,12 +96,22 @@
     <script>
         async function fetchCoupon(url) {
             try {
-                const response = await fetch(`https://couponfollow.com/site/query?q=${encodeURIComponent(url)}`);
+                const response = await fetch(`https://couponfind.com/site/${encodeURIComponent(url)}`);
                 const text = await response.text();
-                const match = text.match(/<span class="coupon-code">([^<]+)<\/span>/);
-                return { coupon: match ? match[1] : null };
+
+                // Look for coupons containing the keyword "FREE"
+                const freeCoupons = [];
+                const regex = /<span class="coupon-code">([^<]+)<\/span>/g;
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    if (match[1].toUpperCase().includes('FREE')) {
+                        freeCoupons.push(match[1]);
+                    }
+                }
+
+                return { coupons: freeCoupons.length ? freeCoupons : null };
             } catch (error) {
-                throw new Error("Failed to fetch coupon.");
+                throw new Error("Failed to fetch coupons.");
             }
         }
 
@@ -127,14 +137,19 @@
 
             try {
                 let data = await fetchCoupon(url);
-                if (!data.coupon) {
-                    data.coupon = await generateUUID();
+                if (!data.coupons || data.coupons.length === 0) {
+                    data.coupons = [await generateUUID()];
                 }
+
                 resultDiv.innerHTML = `
-                    ✅ Found a coupon for <b>${url}</b>: 
+                    ✅ Found ${data.coupons.length} free coupon(s) for <b>${url}</b>: 
                     <div class="uuid-container">
-                        <strong>${data.coupon}</strong>
-                        <button class="copy-button" onclick="copyUUID('${data.coupon}')">Copy</button>
+                        ${data.coupons.map(coupon => `
+                            <div>
+                                <strong>${coupon}</strong>
+                                <button class="copy-button" onclick="copyUUID('${coupon}')">Copy</button>
+                            </div>
+                        `).join('')}
                     </div>
                     <div class="policy">
                         Before downloading, please review our <a href="${policyURL}" target="_blank" style="color: var(--primary-color);">website policy</a>.
@@ -152,6 +167,9 @@
             });
         }
     </script>
+
+</body>
+</html>
 
 </body>
 </html>
